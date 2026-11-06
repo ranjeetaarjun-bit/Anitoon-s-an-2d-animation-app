@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827">
+<title>AnyToons — 2D Animation Studio | KLT Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:#090e1b;color:#e5e7eb}
+button,input,select{font:inherit}button{touch-action:manipulation}.panel{background:#111a2c;border:1px solid #25334b}
+.tab-active{background:#253653;color:#fff;border-bottom:2px solid #a78bfa}
+.stage-wrap{width:min(100%,1100px);aspect-ratio:16/9;position:relative;overflow:hidden;background:#172554;border:1px solid #475569;border-radius:12px;box-shadow:0 24px 70px #0008}
+#stage{position:absolute;inset:0;overflow:hidden;touch-action:none;user-select:none}
+#bgLayer{position:absolute;inset:0;background-size:cover;background-position:center;transition:filter .25s}
+.character{position:absolute;min-width:64px;display:flex;flex-direction:column;align-items:center;transform-origin:center center;cursor:grab;touch-action:none;user-select:none}
+.character:active{cursor:grabbing}.character.selected{outline:2px dashed #fbbf24;outline-offset:7px;border-radius:8px}
+.character .avatar{font-size:clamp(30px,6vw,72px);line-height:1.1;filter:drop-shadow(0 5px 3px #0006)}
+.character img{width:clamp(55px,9vw,100px);height:clamp(55px,9vw,100px);object-fit:contain;filter:drop-shadow(0 5px 3px #0006);pointer-events:none}
+.char-name{font-size:10px;background:#0009;color:white;border-radius:99px;padding:3px 8px;margin-top:5px;white-space:nowrap}
+.mouth{width:10px;height:4px;border-radius:50%;background:#6b1023;margin-top:-13px;opacity:0;position:absolute;top:65%;left:calc(50% - 5px)}
+.character.talking .mouth{opacity:1;animation:talk .16s infinite alternate}
+@keyframes talk{to{height:11px;width:8px}}
+.frame{min-width:60px;height:52px;border:1px solid #34445e;border-radius:8px;background:#17243a;color:#cbd5e1;font-size:11px;font-weight:700}
+.frame.active{border:2px solid #a78bfa;background:#312e81;color:white}
+.small-btn{padding:8px 10px;border-radius:8px;font-size:12px;font-weight:700;background:#263650;color:#e5e7eb;border:1px solid #3a4b66}
+.small-btn:hover{background:#354968}.primary{background:#7c3aed;color:white}.primary:hover{background:#6d28d9}
+input[type=range]{accent-color:#a78bfa;width:100%}
+@media(max-width:760px){body{overflow:auto}.workspace{display:flex;flex-direction:column}.sidebar{width:100%!important;max-height:310px}.stage-area{min-height:320px;padding:12px!important}.stage-wrap{width:100%}header{gap:8px;flex-wrap:wrap}.top-actions{flex-wrap:wrap}}
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+<div id="splash" class="fixed inset-0 z-50 flex items-center justify-center p-5 bg-gradient-to-br from-indigo-950 via-violet-900 to-fuchsia-900">
+ <div class="text-center max-w-md rounded-3xl border border-white/20 bg-white/10 backdrop-blur-xl p-8 shadow-2xl">
+  <div class="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-2xl bg-white/15 text-5xl">🎬</div>
+  <p class="text-xs uppercase tracking-[.3em] text-violet-200">KLT Studio presents</p>
+  <h1 class="mt-2 text-4xl font-extrabold">AnyToons</h1>
+  <p class="mt-3 text-sm text-violet-100">Your 2D animation workspace</p>
+  <button class="primary mt-7 rounded-xl px-7 py-3 font-bold shadow-lg" onclick="startApp()">🚀 Start Creating</button>
+ </div>
+</div>
+<header class="flex items-center justify-between gap-3 border-b border-slate-700 bg-slate-950 px-4 py-3">
+ <div class="flex items-center gap-3"><div class="grid h-10 w-10 place-items-center rounded-xl bg-violet-600 text-xl">🎞️</div><div><h1 class="font-extrabold tracking-tight">AnyToons Studio</h1><p class="text-[10px] text-slate-400">BY KLT STUDIO · 2D ANIMATION</p></div></div>
+ <div class="top-actions flex gap-2"><button class="small-btn" onclick="toggleSidebar()">☷ Panels</button><button class="small-btn" onclick="saveProject()">💾 Save .json</button><button class="small-btn primary" onclick="document.getElementById('projectFile').click()">📂 Open project</button><input id="projectFile" type="file" accept=".json,application/json" class="hidden" onchange="loadProject(event)"></div>
+</header>
+<main class="workspace flex min-h-0 flex-1">
+<aside id="sidebar" class="sidebar w-80 shrink-0 border-r border-slate-700 bg-slate-900">
+ <nav class="grid grid-cols-4 border-b border-slate-700 text-xs font-bold">
+  <button class="tab-active p-3" data-tab="chars" onclick="switchTab('chars')">Chars</button><button class="p-3 text-slate-400" data-tab="scene" onclick="switchTab('scene')">Scene</button><button class="p-3 text-slate-400" data-tab="voice" onclick="switchTab('voice')">Voice</button><button class="p-3 text-slate-400" data-tab="motion" onclick="switchTab('motion')">Motion</button>
+ </nav>
+ <div class="space-y-4 p-4">
+  <section id="panel-chars" class="tab-panel space-y-3">
+   <h2 class="text-sm font-bold">Character library</h2>
+   <div class="grid grid-cols-2 gap-2">
+    <button class="small-btn" onclick="addCharacter('Ninja Boy','🥷')">🥷 Ninja Boy</button><button class="small-btn" onclick="addCharacter('Anime Hero','🦸')">🦸 Anime Hero</button>
+    <button class="small-btn" onclick="addCharacter('Anime Girl','👩🏻‍🎤')">✨ Anime Girl</button><button class="small-btn" onclick="addCharacter('Cyber Bot','🤖')">🤖 Cyber Bot</button>
+    <button class="small-btn" onclick="addCharacter('Fox','🦊')">🦊 Fox</button><button class="small-btn" onclick="addCharacter('Warrior','⚔️')">⚔️ Warrior</button>
+   </div>
+   <div class="border-t border-slate-700 pt-3"><label class="mb-2 block text-xs text-slate-300">Upload your character (PNG/JPG)</label><input id="customChar" type="file" accept="image/*" class="w-full text-xs" onchange="uploadCharacter(event)"></div>
+   <div id="charControls" class="hidden space-y-3 border-t border-slate-700 pt-3">
+    <p class="text-xs font-bold text-violet-200">Selected character</p><label class="block text-xs">Size <span id="scaleValue">1.0×</span><input id="scaleRange" type="range" min=".4" max="2.8" step=".1" value="1" oninput="setScale(this.value)"></label>
+    <div class="flex gap-2"><button class="small-btn flex-1" onclick="duplicateCharacter()">Duplicate</button><button class="small-btn flex-1 !bg-red-950 !text-red-200" onclick="deleteCharacter()">Delete</button></div>
+    <p class="text-[10px] text-slate-400">Drag the character directly on the stage to reposition it.</p>
+   </div>
+  </section>
+  <section id="panel-scene" class="tab-panel hidden space-y-3">
+   <h2 class="text-sm font-bold">Background & lighting</h2>
+   <label class="block text-xs text-slate-300">Scene preset<select id="bgSelect" class="mt-2 w-full rounded-lg border border-slate-600 bg-slate-800 p-2" onchange="changeBackground(this.value)"><option value="park">🌳 Green park</option><option value="city">🏙️ City street</option><option value="room">🏠 Cozy room</option><option value="space">🌌 Space</option><option value="green">🟢 Green screen</option></select></label>
+   <button id="lightingBtn" class="w-full rounded-xl bg-amber-300 px-3 py-3 text-sm font-extrabold text-slate-900" onclick="toggleLighting()">☀️ DAY LIGHTING</button>
+   <p class="text-xs text-slate-400">Lighting is stored separately on each frame.</p>
+  </section>
+  <section id="panel-voice" class="tab-panel hidden space-y-3">
+   <h2 class="text-sm font-bold">Voice & lip-sync</h2>
+   <p class="text-xs leading-5 text-slate-400">Record dialogue in your browser. When you play the recorded voice, selected characters animate their mouth as a simple visual lip-sync cue.</p>
+   <button id="recordBtn" class="w-full rounded-xl bg-rose-600 px-3 py-3 text-sm font-bold" onclick="toggleRecording()">🎙️ Start recording</button>
+   <p id="recordStatus" class="text-xs text-slate-400">Microphone not in use.</p>
+   <audio id="voiceAudio" controls class="w-full"></audio>
+   <div class="flex gap-2"><button class="small-btn flex-1" onclick="playVoice()">▶ Play voice</button><button class="small-btn flex-1" onclick="stopVoice()">■ Stop</button></div>
+   <p class="text-[10px] text-slate-500">Microphone permission and a secure context (HTTPS or localhost) are required. Voice recording is saved with the project only in this browser session; export your project JSON to keep it.</p>
+  </section>
+  <section id="panel-motion" class="tab-panel hidden space-y-3">
+   <h2 class="text-sm font-bold">Pose presets</h2><div class="grid grid-cols-2 gap-2">
+    <button class="small-btn" onclick="setMotion('idle')">🧍 Idle</button><button class="small-btn" onclick="setMotion('walk')">🚶 Walk</button><button class="small-btn" onclick="setMotion('run')">🏃 Run</button><button class="small-btn" onclick="setMotion('jump')">⬆️ Jump</button>
+   </div><p class="text-xs text-slate-400">Pose presets add simple preview motion to the selected character. Create separate frames for detailed frame-by-frame animation.</p>
+  </section>
+ </div>
+</aside>
+<section class="stage-area flex min-w-0 flex-1 flex-col items-center justify-center gap-3 bg-slate-950 p-5">
+ <div class="flex w-full max-w-[1100px] items-center justify-between text-xs text-slate-400"><span>PREVIEW CANVAS · 16:9 · YOUTUBE WIDESCREEN</span><span id="stageInfo">1920 × 1080</span></div>
+ <div class="stage-wrap" id="stageWrap"><div id="stage"><div id="bgLayer"></div><div id="characterStage"></div><div class="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/40 px-3 py-1 text-[9px] tracking-wider text-white/80">ANYTOONS · KLT STUDIO</div></div></div>
+ <div class="flex flex-wrap items-center justify-center gap-2"><button class="small-btn" onclick="exportPNG()">🖼️ Export PNG</button><button class="small-btn" onclick="exportWebM()">🎥 Export WebM</button><span id="exportStatus" class="text-xs text-slate-500"></span></div>
+</section>
+</main>
+<footer class="border-t border-slate-700 bg-slate-900 px-4 py-3">
+ <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+  <div class="flex items-center gap-2"><span class="text-xs font-extrabold">FRAME TIMELINE</span><button class="small-btn primary" onclick="addFrame()">＋ Add frame</button><button class="small-btn" onclick="deleteFrame()">Delete frame</button></div>
+  <div class="flex flex-wrap items-center gap-2"><label class="text-xs text-slate-400">FPS <select id="fps" class="rounded bg-slate-800 p-1" onchange="fps=+this.value"><option>8</option><option selected>12</option><option>24</option><option>30</option></select></label><button class="small-btn" onclick="previousFrame()">◀</button><button id="playBtn" class="small-btn primary" onclick="togglePreview()">▶ Preview</button><button class="small-btn" onclick="nextFrame()">▶|</button><span id="frameCount" class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold">Frame 1 / 1</span></div>
+ </div>
+ <div id="frames" class="flex gap-2 overflow-x-auto pb-1"></div>
+</footer>
+<script>
+const $=id=>document.getElementById(id);
+let frames=[makeFrame(1)],current=0,selected=null,fps=12,previewTimer=null,recording=null,recordChunks=[],voiceURL=null,voiceData=null;
+function makeFrame(id){return{id,bg:'park',lighting:'day',characters:[]}}
+function activeFrame(){return frames[current]}
+function startApp(){$('splash').classList.add('hidden');renderTimeline();renderStage()}
+function toggleSidebar(){$('sidebar').classList.toggle('hidden')}
+function switchTab(tab){document.querySelectorAll('.tab-panel').forEach(p=>p.classList.add('hidden'));$('panel-'+tab).classList.remove('hidden');document.querySelectorAll('[data-tab]').forEach(b=>b.className='p-3 text-slate-400');document.querySelector(`[data-tab="${tab}"]`).className='tab-active p-3'}
+function clone(x){return JSON.parse(JSON.stringify(x))}
+function addFrame(){frames.splice(current+1,0,{...clone(activeFrame()),id:Date.now()});current++;selected=null;renderAll()}
+function deleteFrame(){if(frames.length===1){activeFrame().characters=[]}else{frames.splice(current,1);current=Math.max(0,current-1)}selected=null;renderAll()}
+function selectFrame(i){current=i;selected=null;renderAll()}
+function previousFrame(){selectFrame(Math.max(0,current-1))}
+function nextFrame(){selectFrame(Math.min(frames.length-1,current+1))}
+function renderTimeline(){$('frames').innerHTML='';frames.forEach((f,i)=>{let b=document.createElement('button');b.className='frame '+(i===current?'active':'');b.textContent='F'+(i+1);b.onclick=()=>selectFrame(i);$('frames').appendChild(b)});$('frameCount').textContent=`Frame ${current+1} / ${frames.length}`}
+function renderAll(){renderTimeline();renderStage()}
+function addCharacter(name,emoji,img=null){let n=activeFrame().characters.length;activeFrame().characters.push({name,emoji,img,x:28+n*15,y:35,scale:1,motion:'idle'});selected=n;renderAll()}
+function uploadCharacter(e){let file=e.target.files[0];if(!file)return;let r=new FileReader();r.onload=()=>addCharacter(file.name.replace(/\.[^.]+$/,''),'',r.result);r.readAsDataURL(file);e.target.value=''}
+function setScale(v){let c=activeFrame().characters[selected];if(!c)return;c.scale=+v;$('scaleValue').textContent=(+v).toFixed(1)+'×';renderStage()}
+function deleteCharacter(){if(selected===null)return;activeFrame().characters.splice(selected,1);selected=null;renderAll()}
+function duplicateCharacter(){let c=activeFrame().characters[selected];if(!c)return;let copy=clone(c);copy.x=Math.min(90,copy.x+8);activeFrame().characters.push(copy);selected=activeFrame().characters.length-1;renderAll()}
+function setMotion(m){let c=activeFrame().characters[selected];if(!c){alert('Select a character on the stage first.');return}c.motion=m;renderStage()}
+function changeBackground(v){activeFrame().bg=v;renderStage()}
+function toggleLighting(){activeFrame().lighting=activeFrame().lighting==='day'?'night':'day';renderStage()}
+const backgrounds={
+ park:{day:'linear-gradient(#38bdf8 0%,#bae6fd 57%,#86efac 58%,#22c55e 100%)',night:'linear-gradient(#080d2b 0%,#24245b 58%,#172c35 59%,#10251e 100%)'},
+ city:{day:'linear-gradient(#7dd3fc,#cbd5e1 60%,#64748b 61%,#334155)',night:'linear-gradient(#090d24,#24204b 60%,#202638 61%,#111827)'},
+ room:{day:'linear-gradient(120deg,#fde68a,#fed7aa 60%,#c084fc)',night:'linear-gradient(120deg,#20213e,#312e51 60%,#43335a)'},
+ space:{day:'radial-gradient(circle at 70% 25%,#fef3c7 0 5%,transparent 6%),linear-gradient(#2563eb,#312e81 65%,#111827)',night:'radial-gradient(circle at 70% 25%,#fff 0 4%,transparent 5%),linear-gradient(#020617,#172554 65%,#020617)'},
+ green:{day:'#22c55e',night:'#15803d'}
+};
+function renderStage(){let f=activeFrame();$('bgLayer').style.background=backgrounds[f.bg][f.lighting];$('bgSelect').value=f.bg;$('lightingBtn').textContent=f.lighting==='day'?'☀️ DAY LIGHTING':'🌙 NIGHT LIGHTING';$('lightingBtn').className='w-full rounded-xl px-3 py-3 text-sm font-extrabold '+(f.lighting==='day'?'bg-amber-300 text-slate-900':'bg-indigo-800 text-white');$('characterStage').innerHTML='';
+ f.characters.forEach((c,i)=>{let el=document.createElement('div');el.className='character'+(i===selected?' selected':'');el.style.left=c.x+'%';el.style.top=c.y+'%';el.style.transform=`scale(${c.scale})`;el.dataset.index=i;
+  if(c.img){let im=document.createElement('img');im.src=c.img;im.alt=c.name;el.appendChild(im)}else{let av=document.createElement('div');av.className='avatar';av.textContent=c.emoji;el.appendChild(av)}
+  let mouth=document.createElement('div');mouth.className='mouth';el.appendChild(mouth);let label=document.createElement('span');label.className='char-name';label.textContent=c.name;el.appendChild(label);
+  el.addEventListener('pointerdown',e=>beginDrag(e,i,el));el.addEventListener('click',e=>{e.stopPropagation();selected=i;renderStage();$('charControls').classList.remove('hidden');$('scaleRange').value=c.scale;$('scaleValue').textContent=c.scale.toFixed(1)+'×'});$('characterStage').appendChild(el);
+ });$('charControls').classList.toggle('hidden',selected===null);
+}
+let drag=null;
+function beginDrag(e,i,el){if(previewTimer)return;selected=i;let rect=$('stage').getBoundingClientRect();drag={i,el,rect,startX:e.clientX,startY:e.clientY,origX:activeFrame().characters[i].x,origY:activeFrame().characters[i].y};el.setPointerCapture(e.pointerId);el.onpointermove=moveDrag;el.onpointerup=endDrag;renderStage();$('charControls').classList.remove('hidden');$('scaleRange').value=activeFrame().characters[i].scale}
+function moveDrag(e){if(!drag)return;let c=activeFrame().characters[drag.i];c.x=Math.max(0,Math.min(94,drag.origX+(e.clientX-drag.startX)/drag.rect.width*100));c.y=Math.max(0,Math.min(88,drag.origY+(e.clientY-drag.startY)/drag.rect.height*100));drag.el.style.left=c.x+'%';drag.el.style.top=c.y+'%'}
+function endDrag(){if(drag){drag.el.onpointermove=null;drag.el.onpointerup=null;drag=null}}
+function togglePreview(){if(previewTimer){stopPreview();return}if(frames.length<2){alert('Add at least two frames to preview animation.');return}let i=current;$('playBtn').textContent='■ Stop';previewTimer=setInterval(()=>{current=(current+1)%frames.length;renderAll()},1000/fps);renderAll()}
+function stopPreview(){clearInterval(previewTimer);previewTimer=null;$('playBtn').textContent='▶ Preview'}
+async function toggleRecording(){if(recording){recording.stop();return}if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){alert('Voice recording is not supported in this browser.');return}try{let stream=await navigator.mediaDevices.getUserMedia({audio:true});recordChunks=[];recording=new MediaRecorder(stream);recording.ondataavailable=e=>{if(e.data.size)recordChunks.push(e.data)};recording.onstop=()=>{let blob=new Blob(recordChunks,{type:recording.mimeType||'audio/webm'});voiceData=blob; if(voiceURL)URL.revokeObjectURL(voiceURL);voiceURL=URL.createObjectURL(blob);$('voiceAudio').src=voiceURL;$('recordStatus').textContent='Recording saved in this session.';stream.getTracks().forEach(t=>t.stop());recording=null;$('recordBtn').textContent='🎙️ Record again'};recording.start();$('recordBtn').textContent='■ Stop recording';$('recordStatus').textContent='Recording…'}catch(err){alert('Microphone access was not granted: '+err.message)}}
+function playVoice(){let a=$('voiceAudio');if(!a.src){alert('Record a voice clip first.');return}a.currentTime=0;a.play();document.querySelectorAll('.character').forEach(el=>el.classList.add('talking'));a.onended=()=>document.querySelectorAll('.character').forEach(el=>el.classList.remove('talking'))}
+function stopVoice(){$('voiceAudio').pause();$('voiceAudio').currentTime=0;document.querySelectorAll('.character').forEach(el=>el.classList.remove('talking'))}
+function download(blob,name){let a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)}
+function saveProject(){let data={app:'AnyToons',studio:'KLT Studio',version:1,fps,frames,voice:voiceData?null:undefined,voiceNote:voiceData?'Voice clip is not embedded in JSON; export it separately from the audio player if needed.':null};download(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),'anytoons-project.json')}
+function loadProject(e){let file=e.target.files[0];if(!file)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!Array.isArray(d.frames)||!d.frames.length)throw Error('Invalid project');frames=d.frames;fps=d.fps||12;current=0;selected=null;renderAll()}catch(err){alert('Could not open project: '+err.message)}};r.readAsText(file);e.target.value=''}
+async function exportPNG(){try{$('exportStatus').textContent='Rendering PNG…';let c=await html2canvas($('stage'),{backgroundColor:null,scale:2,useCORS:true});c.toBlob(b=>{download(b,'anytoons-frame-'+(current+1)+'.png');$('exportStatus').textContent='PNG exported.'},'image/png')}catch(e){$('exportStatus').textContent='PNG export failed.'}}
+async function exportWebM(){if(!window.MediaRecorder){alert('WebM recording is not supported in this browser.');return}let canvas=document.createElement('canvas');canvas.width=1280;canvas.height=720;let ctx=canvas.getContext('2d');let stream=canvas.captureStream(fps);let rec;try{rec=new MediaRecorder(stream,{mimeType:'video/webm'});}catch(e){alert('WebM export is not available in this browser.');return}let chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};rec.onstop=()=>{download(new Blob(chunks,{type:'video/webm'}),'anytoons-animation.webm');$('exportStatus').textContent='WebM exported.';stream.getTracks().forEach(t=>t.stop())};$('exportStatus').textContent='Rendering animation…';rec.start();let idx=0;async function draw(){let f=frames[idx];renderStageForExport(f);await new Promise(r=>setTimeout(r,40));let shot=await html2canvas($('stage'),{scale:1,backgroundColor:null});ctx.clearRect(0,0,1280,720);ctx.drawImage(shot,0,0,1280,720);idx++;if(idx<frames.length)setTimeout(draw,1000/fps);else setTimeout(()=>rec.stop(),1000/fps)}draw()}
+function renderStageForExport(f){let old=current;let i=frames.indexOf(f);if(i>=0){current=i;renderStage();current=old}}
+renderTimeline();renderStage();
+</script>
+</body>
+</html>
